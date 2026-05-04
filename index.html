@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MyLifeLog</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #007aff; --success: #34c759; --danger: #ff3b30; --bg: #f2f2f7; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; padding-bottom: 100px; }
+        .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        h2 { font-size: 1.1rem; margin-top: 0; color: #333; border-left: 4px solid var(--primary); padding-left: 8px; }
+        label { display: block; font-size: 0.85rem; font-weight: bold; margin: 10px 0 5px; color: #666; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .btn-check { background: white; border: 1px solid #ddd; padding: 10px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }
+        .btn-check.active { background: var(--danger); color: white; border-color: var(--danger); }
+        .save-btn { position: fixed; bottom: 20px; left: 20px; right: 20px; background: var(--success); color: white; border: none; padding: 18px; border-radius: 15px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>💰 家計簿</h2>
+        <label>金額</label>
+        <input type="number" id="amount" placeholder="金額を入力">
+        
+        <label>項目</label>
+        <select id="category">
+            <option>食費 🍎</option>
+            <option>交通費 🚃</option>
+            <option>家賃 🏠</option>
+            <option>日用品 🧻</option>
+            <option>収入 💰</option>
+        </select>
+
+        <label>支払方法</label>
+        <select id="method">
+            <option>現金</option>
+            <option>クレカ</option>
+            <option>デビット</option>
+        </select>
+
+        <label>メモ</label>
+        <textarea id="finance-memo" rows="2" placeholder="どこで何を買った？"></textarea>
+    </div>
+
+    <div class="card">
+        <h2>🏥 体調管理</h2>
+        <label>睡眠</label>
+        <select id="sleep">
+            <option>快眠</option>
+            <option>睡眠不足</option>
+            <option>不眠</option>
+        </select>
+
+        <label>食事メモ</label>
+        <textarea id="meal-memo" rows="3" placeholder="朝：パン、昼：うどん、鉄緑茶：済"></textarea>
+
+        <label>体調チェック</label>
+        <div class="grid" id="symptom-grid">
+            <button class="btn-check" onclick="this.classList.toggle('active')">🧠 頭痛</button>
+            <button class="btn-check" onclick="this.classList.toggle('active')">🤢 胃</button>
+            <button class="btn-check" onclick="this.classList.toggle('active')">🎢 気分</button>
+            <button class="btn-check" onclick="this.classList.toggle('active')">🩸 生理痛</button>
+            <button class="btn-check" onclick="this.classList.toggle('active')">🦾 肩こり</button>
+            <button class="btn-check" onclick="this.classList.toggle('active')">🚽 排便あり</button>
+        </div>
+
+        <label>その他メモ</label>
+        <textarea id="other-memo" rows="2"></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveData()">データを保存する</button>
+
+    <script>
+        // --- 設定：自分の情報に書き換えてください ---
+        const SUPABASE_URL = "https://kgkoveeivqbjpbqhpoxo.supabase.co/rest/v1/";
+        const SUPABASE_KEY = "sb_publishable_xaSYDZ2dYVhLxrMghg-gxg__mVM5-eB";
+        // ---------------------------------------
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function saveData() {
+            const amount = document.getElementById('amount').value;
+            const symptoms = Array.from(document.querySelectorAll('.btn-check.active')).map(b => b.innerText);
+            
+            // 家計簿保存
+            if(amount) {
+                await supabase.from('finances').insert([{
+                    amount: parseInt(amount),
+                    category: document.getElementById('category').value,
+                    method: document.getElementById('method').value,
+                    memo: document.getElementById('finance-memo').value
+                }]);
+            }
+
+            // 体調保存
+            const { error } = await supabase.from('health_logs').insert([{
+                sleep_status: document.getElementById('sleep').value,
+                meal_morning: document.getElementById('meal-memo').value,
+                other_memo: document.getElementById('other-memo').value,
+                symptoms: symptoms
+            }]);
+
+            if (error) {
+                alert("エラー: " + error.message);
+            } else {
+                alert("保存しました！");
+                location.reload(); // 画面をリセット
+            }
+        }
+    </script>
+</body>
+</html>
