@@ -3,153 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MyLifeLog v2</title>
+    <title>MyLifeLog Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --primary: #007aff; --success: #34c759; --danger: #ff3b30; --bg: #f2f2f7; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 15px; padding-bottom: 120px; }
+        :root { --primary: #007aff; --success: #34c759; --bg: #f2f2f7; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 80px; }
+        .header { background: white; padding: 15px; text-align: center; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; }
+        .container { padding: 15px; }
         .card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        h2 { font-size: 1.1rem; margin-top: 0; color: #333; border-left: 4px solid var(--primary); padding-left: 8px; margin-bottom: 15px; }
-        label { display: block; font-size: 0.8rem; font-weight: bold; margin: 12px 0 4px; color: #666; }
-        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; background: #fff; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .btn-check { background: white; border: 1px solid #ddd; padding: 10px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }
-        .btn-check.active { background: var(--danger); color: white; border-color: var(--danger); }
-        .save-btn { position: fixed; bottom: 20px; left: 15px; right: 15px; background: var(--success); color: white; border: none; padding: 18px; border-radius: 15px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 100; }
-        .meal-group { border-top: 1px solid #eee; padding-top: 5px; }
+        h2 { font-size: 1rem; margin-top: 0; color: #333; border-left: 4px solid var(--primary); padding-left: 8px; }
+        
+        /* 入力フォーム用スタイル */
+        label { display: block; font-size: 0.8rem; font-weight: bold; margin: 10px 0 4px; color: #666; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        
+        /* タブ切り替え */
+        .tab-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex; border-top: 1px solid #ddd; padding: 10px 0; }
+        .tab-btn { flex: 1; border: none; background: none; font-size: 0.8rem; color: #888; cursor: pointer; }
+        .tab-btn.active { color: var(--primary); font-weight: bold; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* 保存ボタン */
+        .save-btn { background: var(--success); color: white; border: none; padding: 15px; border-radius: 12px; width: 100%; font-weight: bold; margin-top: 10px; }
+        
+        /* 履歴・グラフ用 */
+        .history-item { font-size: 0.9rem; padding: 8px 0; border-bottom: 1px solid #eee; }
+        canvas { max-width: 100%; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>💰 家計簿</h2>
-        <label>金額</label>
-        <input type="number" id="amount" inputmode="numeric" placeholder="金額を入力">
-        
-        <label>項目</label>
-        <select id="category">
-            <option>食費 🍎</option>
-            <option>交通費 🚃</option>
-            <option>家賃 🏠</option>
-            <option>日用品 🧻</option>
-            <option>収入 💰</option>
-        </select>
-
-        <label>支払方法</label>
-        <select id="method">
-            <option>現金</option>
-            <option>クレカ</option>
-            <option>デビット</option>
-        </select>
-
-        <label>メモ</label>
-        <textarea id="finance-memo" rows="2" placeholder="詳細メモ"></textarea>
+    <div class="header">
+        <strong id="current-tab-title">記録入力</strong>
     </div>
 
-    <div class="card">
-        <h2>🏥 体調管理</h2>
-        
-        <label>睡眠</label>
-        <select id="sleep">
-            <option>快眠</option>
-            <option>睡眠不足</option>
-            <option>不眠</option>
-        </select>
-
-        <div class="meal-group">
-            <label>🍳 朝食</label>
-            <input type="text" id="meal-morning" placeholder="何を食べた？">
-            
-            <label>🕛 昼食</label>
-            <input type="text" id="meal-lunch" placeholder="何を食べた？">
-            
-            <label>🍲 夕食</label>
-            <input type="text" id="meal-dinner" placeholder="何を食べた？">
-            
-            <label>🍰 おやつ</label>
-            <input type="text" id="meal-snack" placeholder="間食など">
-            
-            <label>💧 水分</label>
-            <input type="text" id="water-intake" placeholder="摂取量など">
-            
-            <label>🍵 鉄緑茶</label>
-            <input type="text" id="iron-tea" placeholder="飲んだ記録">
+    <div class="container">
+        <!-- 1. 入力ページ -->
+        <div id="page-input" class="page active">
+            <div class="card">
+                <h2>💰 家計簿</h2>
+                <label>金額</label><input type="number" id="amount" inputmode="numeric">
+                <label>項目</label>
+                <select id="category">
+                    <option>食費 🍎</option><option>交通費 🚃</option><option>日用品 🧻</option><option>家賃 🏠</option><option>収入 💰</option>
+                </select>
+                <label>メモ</label><input type="text" id="finance-memo">
+            </div>
+            <div class="card">
+                <h2>🏥 体調管理</h2>
+                <label>睡眠</label>
+                <select id="sleep"><option>快眠</option><option>普通</option><option>不足</option></select>
+                <label>食事（朝/昼/晩/鉄緑茶）</label>
+                <input type="text" id="meal-morning" placeholder="朝"><br>
+                <input type="text" id="meal-lunch" placeholder="昼" style="margin-top:5px">
+                <input type="text" id="meal-dinner" placeholder="夜" style="margin-top:5px">
+                <input type="text" id="iron-tea" placeholder="鉄緑茶" style="margin-top:5px">
+                <button class="save-btn" onclick="saveData()">データを保存する</button>
+            </div>
         </div>
 
-        <label>体調チェック</label>
-        <div class="grid" id="symptom-grid">
-            <button class="btn-check" onclick="this.classList.toggle('active')">🧠 頭痛</button>
-            <button class="btn-check" onclick="this.classList.toggle('active')">🤢 胃</button>
-            <button class="btn-check" onclick="this.classList.toggle('active')">🎢 気分</button>
-            <button class="btn-check" onclick="this.classList.toggle('active')">🩸 生理痛</button>
-            <button class="btn-check" onclick="this.classList.toggle('active')">🦾 肩こり</button>
-            <button class="btn-check" onclick="this.classList.toggle('active')">🚽 排便あり</button>
+        <!-- 2. 履歴ページ (カレンダー) -->
+        <div id="page-history" class="page">
+            <div class="card">
+                <h2>📅 履歴確認</h2>
+                <input type="date" id="view-date" onchange="loadHistory()">
+                <div id="history-content" style="margin-top:15px;">日付を選んでください</div>
+            </div>
         </div>
 
-        <label>その他メモ</label>
-        <textarea id="other-memo" rows="2"></textarea>
+        <!-- 3. 分析ページ (グラフ) -->
+        <div id="page-chart" class="page">
+            <div class="card">
+                <h2>📊 今月の支出分析</h2>
+                <canvas id="expenseChart"></canvas>
+                <div id="chart-total" style="text-align:center; margin-top:10px; font-weight:bold;"></div>
+            </div>
+        </div>
     </div>
 
-    <button class="save-btn" onclick="saveData()">データを保存する</button>
+    <!-- タブバー -->
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="showPage('input')">📝<br>入力</button>
+        <button class="tab-btn" onclick="showPage('history')">📅<br>履歴</button>
+        <button class="tab-btn" onclick="showPage('chart')">📊<br>グラフ</button>
+    </div>
 
     <script>
-        // --- 設定：必ず自分のものに書き換えてください ---
-        const SUPABASE_URL = "https://kgkoveeivqbjpbqhpoxo.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_xaSYDZ2dYVhLxrMghg-gxg__mVM5-eB";
-        // ---------------------------------------
-
+        const SUPABASE_URL = "ここにURLを貼る";
+        const SUPABASE_KEY = "ここにKEYを貼る";
         const { createClient } = supabase;
         const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function saveData() {
-            const btn = document.querySelector('.save-btn');
-            btn.disabled = true;
-            btn.innerText = "保存中...";
-
-            try {
-                const amount = document.getElementById('amount').value;
-                const symptoms = Array.from(document.querySelectorAll('.btn-check.active')).map(b => b.innerText);
-                const bowelMove = symptoms.includes('🚽 排便あり');
-                
-                // 家計簿の保存
-                if(amount) {
-                    const { error: fError } = await _supabase.from('finances').insert([{
-                        amount: parseInt(amount),
-                        category: document.getElementById('category').value,
-                        method: document.getElementById('method').value,
-                        memo: document.getElementById('finance-memo').value,
-                        type: "支出"
-                    }]);
-                    if (fError) throw fError;
-                }
-
-                // 体調の保存
-                const { error: hError } = await _supabase.from('health_logs').insert([{
-                    date: new Date().toISOString().split('T')[0],
-                    sleep_status: document.getElementById('sleep').value,
-                    meal_morning: document.getElementById('meal-morning').value,
-                    meal_lunch: document.getElementById('meal-lunch').value,
-                    meal_dinner: document.getElementById('meal-dinner').value,
-                    meal_snack: document.getElementById('meal-snack').value,
-                    water_intake: document.getElementById('water-intake').value,
-                    iron_tea: document.getElementById('iron-tea').value,
-                    bowel_move: bowelMove,
-                    symptoms: symptoms,
-                    other_memo: document.getElementById('other-memo').value
-                }]);
-
-                if (hError) throw hError;
-
-                alert("保存に成功しました！");
-                location.reload();
-
-            } catch (err) {
-                console.error(err);
-                alert("保存できませんでした。\n理由: " + err.message + "\n\n※Supabaseのテーブル名やカラム名が一致しているか確認してください。");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "データを保存する";
+        // --- ページ切り替え ---
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('page-' + pageId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            if(pageId === 'chart') loadChart();
+            if(pageId === 'history') {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('view-date').value = today;
+                loadHistory();
             }
+        }
+
+        // --- 保存機能 ---
+        async function saveData() {
+            const amount = document.getElementById('amount').value;
+            const date = new Date().toISOString().split('T')[0];
+
+            if(amount) {
+                await _supabase.from('finances').insert([{
+                    amount: parseInt(amount),
+                    category: document.getElementById('category').value,
+                    type: "支出",
+                    memo: document.getElementById('finance-memo').value
+                }]);
+            }
+
+            await _supabase.from('health_logs').insert([{
+                date: date,
+                sleep_status: document.getElementById('sleep').value,
+                meal_morning: document.getElementById('meal-morning').value,
+                meal_lunch: document.getElementById('meal-lunch').value,
+                meal_dinner: document.getElementById('meal-dinner').value,
+                iron_tea: document.getElementById('iron-tea').value
+            }]);
+
+            alert("保存しました！");
+            location.reload();
+        }
+
+        // --- 履歴読み込み ---
+        async function loadHistory() {
+            const date = document.getElementById('view-date').value;
+            const container = document.getElementById('history-content');
+            container.innerHTML = "読み込み中...";
+
+            const { data: fin } = await _supabase.from('finances').select('*').eq('created_at::date', date);
+            const { data: health } = await _supabase.from('health_logs').select('*').eq('date', date);
+
+            let html = `<strong>🏠 家計簿:</strong><br>`;
+            if(fin && fin.length > 0) {
+                fin.forEach(f => html += `<div class="history-item">${f.category}: ${f.amount}円 (${f.memo})</div>`);
+            } else { html += "なし<br>"; }
+
+            html += `<br><strong>🏥 体調:</strong><br>`;
+            if(health && health.length > 0) {
+                const h = health[0];
+                html += `<div class="history-item">睡眠: ${h.sleep_status}<br>朝: ${h.meal_morning}<br>昼: ${h.meal_lunch}<br>夜: ${h.meal_dinner}<br>茶: ${h.iron_tea}</div>`;
+            } else { html += "なし"; }
+            
+            container.innerHTML = html;
+        }
+
+        // --- グラフ表示 ---
+        let myChart = null;
+        async function loadChart() {
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+            
+            const { data } = await _supabase.from('finances').select('*').gte('created_at', firstDay);
+            
+            const summary = {};
+            let total = 0;
+            data.forEach(item => {
+                summary[item.category] = (summary[item.category] || 0) + item.amount;
+                total += item.amount;
+            });
+
+            document.getElementById('chart-total').innerText = `今月の合計支出: ${total.toLocaleString()}円`;
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(summary),
+                    datasets: [{
+                        data: Object.values(summary),
+                        backgroundColor: ['#ff3b30', '#007aff', '#34c759', '#ffcc00', '#5856d6']
+                    }]
+                }
+            });
         }
     </script>
 </body>
